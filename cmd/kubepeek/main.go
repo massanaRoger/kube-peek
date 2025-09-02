@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -9,8 +8,6 @@ import (
 )
 
 func main() {
-	fmt.Println("Hello, World!")
-
 	provider, err := kube.NewProvider()
 	if err != nil {
 		log.Printf("error: %v", err)
