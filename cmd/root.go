@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/massanaRoger/m/v2/internal/kube"
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 )
@@ -9,6 +12,12 @@ import (
 type App struct {
 	Client *kubernetes.Clientset
 	root   *cobra.Command
+	table  *tablewriter.Table
+	flags  Flags
+}
+
+type Flags struct {
+	namespace string
 }
 
 func NewApp() (*App, error) {
@@ -22,7 +31,11 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
+	table := tablewriter.NewWriter(os.Stdout)
+
 	a.Client = client
+
+	a.table = table
 
 	a.root = &cobra.Command{
 		Use:           "kubepeek",
@@ -38,6 +51,9 @@ func NewApp() (*App, error) {
 			return cmd.Help()
 		},
 	}
+
+	a.root.PersistentFlags().StringVarP(&a.flags.namespace, "namespace", "n", "default", "The namespace scope for this CLI request")
+
 	getCmd := a.newGetCmd()
 	getPodsCmd := a.newGetPodsCmd()
 
@@ -60,7 +76,7 @@ func (a *App) newGetPodsCmd() *cobra.Command {
 		Use:   "pods",
 		Short: "List pods",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return kube.ListPods(a.Client)
+			return kube.ListPods(a.Client, a.table, a.flags.namespace)
 		},
 	}
 }
