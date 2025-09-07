@@ -17,7 +17,11 @@ type App struct {
 }
 
 type Flags struct {
-	namespace string
+	namespace     string
+	allNamespaces bool
+	selector      string
+	fieldSelector string
+	watch         bool
 }
 
 func NewApp() (*App, error) {
@@ -44,6 +48,9 @@ func NewApp() (*App, error) {
 		SilenceUsage:  true, // don't print usage on errors
 		SilenceErrors: true, // let us format errors
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			if a.flags.allNamespaces {
+				a.flags.namespace = ""
+			}
 			return nil
 		},
 		// If run with no subcommand, show help.
@@ -52,14 +59,20 @@ func NewApp() (*App, error) {
 		},
 	}
 
-	a.root.PersistentFlags().StringVarP(&a.flags.namespace, "namespace", "n", "default", "The namespace scope for this CLI request")
-
 	getCmd := a.newGetCmd()
 	getPodsCmd := a.newGetPodsCmd()
 
 	getCmd.AddCommand(getPodsCmd)
 
 	a.root.AddCommand(getCmd)
+
+	a.root.PersistentFlags().StringVarP(&a.flags.namespace, "namespace", "n", "default", "The namespace scope for this CLI request")
+
+	a.root.PersistentFlags().BoolVarP(&a.flags.allNamespaces, "all-namespaces", "A", false, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
+
+	getCmd.PersistentFlags().StringVar(&a.flags.fieldSelector, "field-selector", "", "Selector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type.")
+	getCmd.PersistentFlags().StringVarP(&a.flags.selector, "selector", "l", "", "Selector (label query) to filter on, supports '=', '==', '!=', 'in', 'notin'.(e.g. -l key1=value1,key2=value2,key3 in (value3)). Matching objects must satisfy all of the specified label constraints")
+	getCmd.PersistentFlags().BoolVarP(&a.flags.watch, "watch", "w", false, "After listing/getting the requested object, watch for changes")
 
 	return a, nil
 }
@@ -76,7 +89,7 @@ func (a *App) newGetPodsCmd() *cobra.Command {
 		Use:   "pods",
 		Short: "List pods",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return kube.ListPods(a.Client, a.table, a.flags.namespace)
+			return kube.ListPods(a.Client, a.table, a.flags.namespace, kube.ListPodsFlags{Selector: a.flags.selector, FieldSelector: a.flags.fieldSelector, Watch: a.flags.watch})
 		},
 	}
 }

@@ -8,8 +8,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func ListPods(client *kubernetes.Clientset, table *tablewriter.Table, namespace string) error {
-	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+type ListPodsFlags struct {
+	Selector      string
+	FieldSelector string
+	Watch         bool
+}
+
+func ListPods(client *kubernetes.Clientset, table *tablewriter.Table, namespace string, flags ListPodsFlags) error {
+	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: flags.Selector, FieldSelector: flags.FieldSelector, Watch: flags.Watch})
 	if err != nil {
 		return err
 	}
