@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/olekukonko/tablewriter"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -17,21 +16,12 @@ type ListPodsFlags struct {
 	Watch         bool
 }
 
-func ListPods(client *kubernetes.Clientset, table *tablewriter.Table, namespace string, flags ListPodsFlags) error {
+func ListPods(client *kubernetes.Clientset, namespace string, flags ListPodsFlags) (*v1.PodList, error) {
 	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: flags.Selector, FieldSelector: flags.FieldSelector, Watch: flags.Watch})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	tableData := make([][]string, pods.Size())
-	for _, p := range pods.Items {
-		row := []string{p.Name, p.Namespace, readiness(p.Status.ContainerStatuses), string(p.Status.Phase), containerRestarts(p.Status.ContainerStatuses), calcAge(p.CreationTimestamp.Time), p.Spec.NodeName}
-		tableData = append(tableData, row)
-	}
-
-	table.Header([]string{"NAME", "NAMESPACE", "READY", "STATUS", "RESTARTS", "AGE", "NODE"})
-	table.Bulk(tableData)
-	table.Render()
-	return nil
+	return pods, err
 }
 
 func readiness(statuses []v1.ContainerStatus) string {
