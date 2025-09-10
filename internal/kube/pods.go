@@ -15,7 +15,14 @@ type ListPodsFlags struct {
 }
 
 func ListPods(client *kubernetes.Clientset, table *tablewriter.Table, namespace string, flags ListPodsFlags) error {
+	if flags.Watch {
+		watchCache := NewCache()
+		err := watchCache.WatchPods(client, table, namespace, flags)
+		return err
+	}
+
 	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: flags.Selector, FieldSelector: flags.FieldSelector, Watch: flags.Watch})
+
 	if err != nil {
 		return err
 	}
