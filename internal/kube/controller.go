@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Controller struct {
@@ -54,4 +53,28 @@ func (c Controller) Run(ctx context.Context, opts RunOpts) error {
 	// Cancel on Ctrl+C too
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case ev, ok := <-w.ResultChan():
+			if !ok { return nil } // stream closed
+
+			switch obj := ev.Object.(type) {
+			case *v1.Pod:
+				key := obj.Namespace + "/" + obj.Name
+				switch ev.Type {
+				case "ADDED", "MODIFIED":
+					store[key] = *obj
+				case "DELETED":
+					delete(store, key)
+				}
+				// Re-render snapshot
+				snap := make([]v1.Pod, 0, len(store))
+				for _, p := range store { snap = append(snap, p) }
+				if err := c.Printer.Refresh(ToRows(snap)); err != nil { return err }
+			}
+		}
+	}
 }

@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/massanaRoger/m/v2/internal/kube"
 	"github.com/spf13/cobra"
@@ -63,7 +66,7 @@ func NewApp() (*App, error) {
 
 	a.root.PersistentFlags().StringVarP(&a.flags.namespace, "namespace", "n", "default", "The namespace scope for this CLI request")
 
-	a.root.PersistentFlags().StringVarP(&a.Output.Type, "output", "o", "table", "The output format for this CLI request (table | json)")
+	a.root.PersistentFlags().StringVarP(&a.flags.output, "output", "o", "table", "The output format for this CLI request (table | json)")
 
 	a.root.PersistentFlags().BoolVarP(&a.flags.allNamespaces, "all-namespaces", "A", false, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 
@@ -86,13 +89,20 @@ func (a *App) newGetPodsCmd() *cobra.Command {
 		Use:   "pods",
 		Short: "List pods",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			ns := a.flags.namespace
 			var printer kube.Printer
+
 			switch a.flags.output {
 			case "json":
 				printer = kube.JSONPrinter{}
 			default:
-				printer = kube.TablePrinter{}
+				if a.flags.watch {
+					printer = kube.NewLiveTablePrinter()
+				} else {
+
+					printer = kube.TablePrinter{}
+				}
 			}
 
 			ctrl := kube.Controller{
@@ -100,7 +110,6 @@ func (a *App) newGetPodsCmd() *cobra.Command {
 				Printer: printer,
 			}
 
-			ctx := context.TODO()
 			return ctrl.Run(ctx, kube.RunOpts{
 				Namespace: ns,
 				ListOpts: kube.ListOpts{
@@ -118,10 +127,13 @@ func Execute() error {
 	if err != nil {
 		return err
 	}
-	err = app.root.Execute()
-	if err != nil {
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	if err := app.root.ExecuteContext(ctx); err != nil {
 		return err
 	}
-
 	return nil
+
 }
