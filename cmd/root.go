@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"os"
+	"context"
 
 	"github.com/massanaRoger/m/v2/internal/kube"
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 )
@@ -12,7 +11,6 @@ import (
 type App struct {
 	Client *kubernetes.Clientset
 	root   *cobra.Command
-	table  *tablewriter.Table
 	flags  Flags
 }
 
@@ -22,6 +20,7 @@ type Flags struct {
 	selector      string
 	fieldSelector string
 	watch         bool
+	output        string
 }
 
 func NewApp() (*App, error) {
@@ -35,11 +34,7 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-
 	a.Client = client
-
-	a.table = table
 
 	a.root = &cobra.Command{
 		Use:           "kubepeek",
@@ -68,6 +63,8 @@ func NewApp() (*App, error) {
 
 	a.root.PersistentFlags().StringVarP(&a.flags.namespace, "namespace", "n", "default", "The namespace scope for this CLI request")
 
+	a.root.PersistentFlags().StringVarP(&a.Output.Type, "output", "o", "table", "The output format for this CLI request (table | json)")
+
 	a.root.PersistentFlags().BoolVarP(&a.flags.allNamespaces, "all-namespaces", "A", false, "If present, list the requested object(s) across all namespaces. Namespace in current context is ignored even if specified with --namespace.")
 
 	getCmd.PersistentFlags().StringVar(&a.flags.fieldSelector, "field-selector", "", "Selector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type.")
@@ -89,7 +86,29 @@ func (a *App) newGetPodsCmd() *cobra.Command {
 		Use:   "pods",
 		Short: "List pods",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return kube.ListPods(a.Client, a.table, a.flags.namespace, kube.ListPodsFlags{Selector: a.flags.selector, FieldSelector: a.flags.fieldSelector, Watch: a.flags.watch})
+			ns := a.flags.namespace
+			var printer kube.Printer
+			switch a.flags.output {
+			case "json":
+				printer = kube.JSONPrinter{}
+			default:
+				printer = kube.TablePrinter{}
+			}
+
+			ctrl := kube.Controller{
+				Source:  kube.ClientGoSource{Client: a.Client},
+				Printer: printer,
+			}
+
+			ctx := context.TODO()
+			return ctrl.Run(ctx, kube.RunOpts{
+				Namespace: ns,
+				ListOpts: kube.ListOpts{
+					LabelSelector: a.flags.selector,
+					FieldSelector: a.flags.fieldSelector,
+				},
+				Watch: a.flags.watch,
+			})
 		},
 	}
 }

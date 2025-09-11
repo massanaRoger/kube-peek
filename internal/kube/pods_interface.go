@@ -1,0 +1,33 @@
+package kube
+
+import (
+	"context"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/watch"
+)
+
+type PodSource interface {
+	List(ctx context.Context, ns string, opts ListOpts) (*v1.PodList, error)
+	Watch(ctx context.Context, ns string, opts ListOpts) (watch.Interface, error)
+}
+
+type ListOpts struct {
+	LabelSelector   string
+	FieldSelector   string
+	ResourceVersion string
+}
+
+type Printer interface {
+	Print([]PodRow) error   // print the current snapshot
+	Refresh([]PodRow) error // re-print (watch mode); can be same as Print
+}
+
+type PodRow struct {
+	Name      string
+	Namespace string
+	Ready     string
+	Status    string
+	Restarts  string
+	Age       string
+	Node      string
+}
