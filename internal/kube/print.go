@@ -3,7 +3,6 @@ package kube
 import (
 	"encoding/json"
 	"io"
-	"os"
 
 	"github.com/olekukonko/tablewriter"
 )

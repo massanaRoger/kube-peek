@@ -1,6 +1,6 @@
 package main
 
-import "github.com/massanaRoger/m/v2/cmd"
+import "github.com/massanaRoger/kube-peek/cmd"
 
 func main() {
 	cmd.Execute()

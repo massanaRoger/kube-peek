@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/massanaRoger/m/v2/internal/kube"
+	"github.com/massanaRoger/kube-peek/internal/kube"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 )
@@ -105,8 +105,8 @@ func (a *App) newGetPodsCmd() *cobra.Command {
 			}
 
 			ctrl := kube.Controller{
-				Source:  kube.ClientGoSource{Client: a.Client},
-				Printer: printer,
+				Source:         kube.ClientGoSource{Client: a.Client},
+				CurrentPrinter: printer,
 			}
 
 			return ctrl.Run(ctx, kube.RunOpts{
