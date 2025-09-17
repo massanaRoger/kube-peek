@@ -1,11 +1,12 @@
 # kube-peek
 
-A learning project implementing a simplified kubectl alternative for listing Kubernetes Pods. Built to understand Kubernetes client-go library and CLI development patterns.
+A learning project implementing a kubectl alternative for Kubernetes Pods with resource monitoring. Built to understand Kubernetes client-go library, metrics API, and CLI development patterns.
 
 ## About
 
 This project was created as a learning exercise to explore:
 - Kubernetes client-go library usage
+- Kubernetes metrics API integration
 - Building CLI tools with Cobra
 - Real-time data presentation with watch functionality
 - Go project structure and interfaces
@@ -13,9 +14,11 @@ This project was created as a learning exercise to explore:
 ## Features
 
 - **Pod Listing**: Query pods with namespace and selector filtering
+- **Resource Monitoring**: Display CPU and memory usage statistics
 - **Multiple Output Formats**: Table view and JSON output
 - **Watch Mode**: Real-time updates with live table refreshing
 - **CLI Interface**: Clean command structure built with Cobra
+- **Comprehensive Testing**: Unit and integration tests
 
 ## Installation
 

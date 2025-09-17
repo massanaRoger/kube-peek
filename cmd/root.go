@@ -12,9 +12,10 @@ import (
 )
 
 type App struct {
-	Client *kubernetes.Clientset
-	root   *cobra.Command
-	flags  Flags
+	Client   *kubernetes.Clientset
+	Provider kube.Provider
+	root     *cobra.Command
+	flags    Flags
 }
 
 type Flags struct {
@@ -37,7 +38,8 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-	a.Client = client
+	a.Client = client.(*kubernetes.Clientset)
+	a.Provider = provider
 
 	a.root = &cobra.Command{
 		Use:           "kubepeek",
@@ -59,10 +61,14 @@ func NewApp() (*App, error) {
 
 	getCmd := a.newGetCmd()
 	getPodsCmd := a.newGetPodsCmd()
+	topCmd := a.newTopCmd()
+	topPodsCmd := a.newTopPodsCmd()
 
 	getCmd.AddCommand(getPodsCmd)
+	topCmd.AddCommand(topPodsCmd)
 
 	a.root.AddCommand(getCmd)
+	a.root.AddCommand(topCmd)
 
 	a.root.PersistentFlags().StringVarP(&a.flags.namespace, "namespace", "n", "default", "The namespace scope for this CLI request")
 
@@ -116,6 +122,54 @@ func (a *App) newGetPodsCmd() *cobra.Command {
 					FieldSelector: a.flags.fieldSelector,
 				},
 				Watch: a.flags.watch,
+			})
+		},
+	}
+}
+
+func (a *App) newTopCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "top",
+		Short: "Display resource usage statistics",
+	}
+}
+
+func (a *App) newTopPodsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "pods",
+		Short: "Display resource usage of pods",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			ns := a.flags.namespace
+			var printer kube.MetricsPrinterInterface
+
+			switch a.flags.output {
+			case "json":
+				printer = kube.NewMetricsJSONPrinter(os.Stdout)
+			default:
+				printer = kube.NewMetricsPrinter(os.Stdout)
+			}
+
+			client, err := a.Provider.ClientSet()
+			if err != nil {
+				return err
+			}
+
+			metricsClient, err := a.Provider.MetricsClient()
+			if err != nil {
+				return err
+			}
+
+			ctrl := kube.MetricsController{
+				Source: kube.MetricsSource{
+					Client:        client,
+					MetricsClient: metricsClient,
+				},
+				Printer: printer,
+			}
+
+			return ctrl.Run(ctx, kube.MetricsOpts{
+				Namespace: ns,
 			})
 		},
 	}

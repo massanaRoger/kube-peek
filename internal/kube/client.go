@@ -7,18 +7,25 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
+	metricsclientset "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 type Provider interface {
-	ClientSet() (*kubernetes.Clientset, error)
+	ClientSet() (kubernetes.Interface, error)
+	MetricsClient() (metricsclientset.Interface, error)
 }
 
 type provider struct {
-	client *kubernetes.Clientset
+	client        kubernetes.Interface
+	metricsClient metricsclientset.Interface
 }
 
-func (f *provider) ClientSet() (*kubernetes.Clientset, error) {
+func (f *provider) ClientSet() (kubernetes.Interface, error) {
 	return f.client, nil
+}
+
+func (f *provider) MetricsClient() (metricsclientset.Interface, error) {
+	return f.metricsClient, nil
 }
 
 func NewProvider() (*provider, error) {
@@ -30,7 +37,6 @@ func NewProvider() (*provider, error) {
 	}
 	flag.Parse()
 
-	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
 		return nil, err
@@ -41,5 +47,14 @@ func NewProvider() (*provider, error) {
 		return nil, err
 	}
 
-	return &provider{clientset}, nil
+	metricsClientset, err := metricsclientset.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &provider{
+		client:        clientset,
+		metricsClient: metricsClientset,
+	}, nil
 }
+
