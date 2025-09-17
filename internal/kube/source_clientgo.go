@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type ClientGoSource struct{ Client *kubernetes.Clientset }
+type ClientGoSource struct{ Client kubernetes.Interface }
 
 func (s ClientGoSource) List(ctx context.Context, ns string, opts ListOpts) (*v1.PodList, error) {
 	return s.Client.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{
