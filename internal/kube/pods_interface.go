@@ -2,6 +2,8 @@ package kube
 
 import (
 	"context"
+	"io"
+
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -15,11 +17,6 @@ type ListOpts struct {
 	LabelSelector   string
 	FieldSelector   string
 	ResourceVersion string
-}
-
-type Printer interface {
-	Print([]PodRow) error   // print the current snapshot
-	Refresh([]PodRow) error // re-print (watch mode); can be same as Print
 }
 
 type PodRow struct {

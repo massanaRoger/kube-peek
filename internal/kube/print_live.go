@@ -19,8 +19,8 @@ type LiveTablePrinter struct {
 	rendered bool
 }
 
-func NewLiveTablePrinter() *LiveTablePrinter {
-	return &LiveTablePrinter{out: os.Stdout}
+func NewLiveTablePrinter(writer io.Writer) *LiveTablePrinter {
+	return &LiveTablePrinter{out: writer}
 }
 
 func (t *LiveTablePrinter) Print(rows []PodRow) error   { return t.render(rows, false) }

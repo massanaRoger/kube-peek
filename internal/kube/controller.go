@@ -10,8 +10,8 @@ import (
 )
 
 type Controller struct {
-	Source  PodSource
-	Printer Printer
+	Source         PodSource
+	CurrentPrinter Printer
 }
 
 type RunOpts struct {
@@ -19,6 +19,12 @@ type RunOpts struct {
 	ListOpts  ListOpts
 	Watch     bool
 }
+
+const (
+	EventTypeAdded    = "ADDED"
+	EventTypeModified = "MODIFIED"
+	EventTypeDeleted  = "DELETED"
+)
 
 func (c Controller) Run(ctx context.Context, opts RunOpts) error {
 	// 1) Initial LIST
@@ -29,7 +35,7 @@ func (c Controller) Run(ctx context.Context, opts RunOpts) error {
 
 	// Snapshot -> rows -> print
 	rows := ToRows(list.Items)
-	if err := c.Printer.Print(rows); err != nil {
+	if err := c.CurrentPrinter.Print(rows); err != nil {
 		return err
 	}
 	if !opts.Watch {
@@ -37,7 +43,7 @@ func (c Controller) Run(ctx context.Context, opts RunOpts) error {
 	}
 
 	// 2) WATCH from the same ResourceVersion
-	w, err := c.Source.(ClientGoSource).Watch(ctx, opts.Namespace, opts.ListOpts)
+	w, err := c.Source.Watch(ctx, opts.Namespace, opts.ListOpts)
 
 	if err != nil {
 		return err
@@ -59,21 +65,27 @@ func (c Controller) Run(ctx context.Context, opts RunOpts) error {
 		case <-ctx.Done():
 			return nil
 		case ev, ok := <-w.ResultChan():
-			if !ok { return nil } // stream closed
+			if !ok {
+				return nil
+			} // stream closed
 
 			switch obj := ev.Object.(type) {
 			case *v1.Pod:
 				key := obj.Namespace + "/" + obj.Name
 				switch ev.Type {
-				case "ADDED", "MODIFIED":
+				case EventTypeAdded, EventTypeModified:
 					store[key] = *obj
-				case "DELETED":
+				case EventTypeDeleted:
 					delete(store, key)
 				}
 				// Re-render snapshot
 				snap := make([]v1.Pod, 0, len(store))
-				for _, p := range store { snap = append(snap, p) }
-				if err := c.Printer.Refresh(ToRows(snap)); err != nil { return err }
+				for _, p := range store {
+					snap = append(snap, p)
+				}
+				if err := c.CurrentPrinter.Refresh(ToRows(snap)); err != nil {
+					return err
+				}
 			}
 		}
 	}

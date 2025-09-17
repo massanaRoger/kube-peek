@@ -95,13 +95,12 @@ func (a *App) newGetPodsCmd() *cobra.Command {
 
 			switch a.flags.output {
 			case "json":
-				printer = kube.JSONPrinter{}
+				printer = kube.NewJsonPrinter(os.Stdout)
 			default:
 				if a.flags.watch {
-					printer = kube.NewLiveTablePrinter()
+					printer = kube.NewLiveTablePrinter(os.Stdout)
 				} else {
-
-					printer = kube.TablePrinter{}
+					printer = kube.NewTablePrinter(os.Stdout)
 				}
 			}
 
